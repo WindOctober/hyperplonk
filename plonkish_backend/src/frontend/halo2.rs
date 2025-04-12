@@ -1,5 +1,6 @@
 use crate::{
     backend::{PlonkishCircuit, PlonkishCircuitInfo, WitnessEncoding},
+    transform::circuit::ZKWASMCircuit,
     util::{
         arithmetic::{BatchInvert, Field},
         chain,
@@ -7,6 +8,7 @@ use crate::{
         izip, Itertools,
     },
 };
+use halo2_curves::bn256::Fr;
 use halo2_proofs::{
     circuit::Value,
     plonk::{
@@ -19,6 +21,7 @@ use std::{
     collections::{HashMap, HashSet},
     mem,
 };
+use zkwasm_halo2::{arithmetic::MultiMillerLoop, plonk::Circuit as ZkCircuit};
 
 #[cfg(any(test, feature = "benchmark"))]
 pub mod circuit;
@@ -94,6 +97,24 @@ impl<F: Field, C: CircuitExt<F>> Halo2Circuit<F, C> {
 impl<F: Field, C: Circuit<F>> AsRef<C> for Halo2Circuit<F, C> {
     fn as_ref(&self) -> &C {
         &self.circuit
+    }
+}
+
+impl<E: MultiMillerLoop, C: ZkCircuit<E::Scalar>> PlonkishCircuit<Fr> for ZKWASMCircuit<E, C> {
+    fn circuit_info_without_preprocess(&self) -> Result<PlonkishCircuitInfo<Fr>, crate::Error> {
+        todo!()
+    }
+
+    fn circuit_info(&self) -> Result<PlonkishCircuitInfo<Fr>, crate::Error> {
+        todo!()
+    }
+
+    fn instances(&self) -> &[Vec<Fr>] {
+        todo!()
+    }
+
+    fn synthesize(&self, round: usize, challenges: &[Fr]) -> Result<Vec<Vec<Fr>>, crate::Error> {
+        todo!()
     }
 }
 

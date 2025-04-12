@@ -6,6 +6,7 @@ pub mod frontend;
 pub mod pcs;
 pub mod piop;
 pub mod poly;
+pub mod transform;
 pub mod util;
 
 pub use halo2_curves;
