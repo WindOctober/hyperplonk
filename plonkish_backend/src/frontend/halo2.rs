@@ -21,7 +21,11 @@ use std::{
     collections::{HashMap, HashSet},
     mem,
 };
-use zkwasm_halo2::{arithmetic::MultiMillerLoop, plonk::Circuit as ZkCircuit};
+use zkwasm_halo2::{
+    arithmetic::MultiMillerLoop,
+    helpers::get_witness,
+    plonk::{from_scalar, get_preprocess_polys_and_permutations, Circuit as ZkCircuit},
+};
 
 #[cfg(any(test, feature = "benchmark"))]
 pub mod circuit;
@@ -100,21 +104,140 @@ impl<F: Field, C: Circuit<F>> AsRef<C> for Halo2Circuit<F, C> {
     }
 }
 
-impl<E: MultiMillerLoop, C: ZkCircuit<E::Scalar>> PlonkishCircuit<Fr> for ZKWASMCircuit<E, C> {
+impl<'a, E: MultiMillerLoop, C: ZkCircuit<E::Scalar>> PlonkishCircuit<Fr>
+    for ZKWASMCircuit<'a, E, C>
+{
     fn circuit_info_without_preprocess(&self) -> Result<PlonkishCircuitInfo<Fr>, crate::Error> {
-        todo!()
+        let Self {
+            k, instances, cs, ..
+        } = self;
+        let challenge_idx = vec![];
+        let advice_idx = advice_idx(cs);
+        let constraints = cs
+            .gates()
+            .iter()
+            .flat_map(|gate| {
+                gate.polynomials().iter().map(|expression| {
+                    convert_expression(cs, &advice_idx, &challenge_idx, expression)
+                })
+            })
+            .collect();
+        let lookups = cs
+            .lookups()
+            .iter()
+            .map(|lookup| {
+                lookup
+                    .input_expressions()
+                    .iter()
+                    .zip(lookup.table_expressions())
+                    .map(|(input, table)| {
+                        let [input, table] = [input, table].map(|expression| {
+                            convert_expression(cs, &advice_idx, &challenge_idx, expression)
+                        });
+                        (input, table)
+                    })
+                    .collect_vec()
+            })
+            .collect();
+
+        let num_instances = vec![instances.len()];
+        let preprocess_polys =
+            vec![vec![Fr::ZERO; 1 << k]; cs.num_selectors() + cs.num_fixed_columns()];
+        let column_idx = column_idx(cs);
+        let permutations = cs
+            .permutation()
+            .get_columns()
+            .iter()
+            .map(|column| {
+                let key = (*column.column_type(), column.index());
+                vec![(column_idx[&key], 1)]
+            })
+            .collect_vec();
+
+        Ok(PlonkishCircuitInfo {
+            k: *k as usize,
+            num_instances,
+            preprocess_polys,
+            num_witness_polys: num_by_phase(&cs.advice_column_phase()),
+            num_challenges: num_by_phase(&cs.challenge_phase()),
+            constraints,
+            lookups,
+            permutations,
+            max_degree: Some(cs.degree::<false>()),
+        })
     }
 
     fn circuit_info(&self) -> Result<PlonkishCircuitInfo<Fr>, crate::Error> {
-        todo!()
+        let Self {
+            k,
+            config,
+            circuit,
+            row_mapping,
+            ..
+        } = self;
+        let mut circuit_info = self.circuit_info_without_preprocess()?;
+
+        let (fixed, permutation) = get_preprocess_polys_and_permutations::<E::G1Affine, C>(
+            k.clone(),
+            row_mapping.len(),
+            circuit,
+            config,
+        )
+        .map_err(|e| {
+            crate::Error::InvalidSnark(format!(
+                "Preprocess: error in halo2-gpu-specific Synthesis: {:?}",
+                e
+            ))
+        })?;
+
+        circuit_info.preprocess_polys = fixed
+            .into_iter()
+            .map(|poly| {
+                poly.values
+                    .into_iter()
+                    .map(|scalar| from_scalar::<E>(&scalar))
+                    .collect::<Vec<Fr>>()
+            })
+            .collect();
+        circuit_info.permutations = permutation;
+        Ok(circuit_info)
     }
 
     fn instances(&self) -> &[Vec<Fr>] {
-        todo!()
+        &self.instances
     }
 
-    fn synthesize(&self, round: usize, challenges: &[Fr]) -> Result<Vec<Vec<Fr>>, crate::Error> {
-        todo!()
+    fn synthesize(&self, phase: usize, _: &[Fr]) -> Result<Vec<Vec<Fr>>, crate::Error> {
+        if phase != 0 {
+            return Ok(vec![]);
+        }
+
+        let instances_slices: Vec<&[E::Scalar]> =
+            self.instances_scalar.iter().map(|v| v.as_slice()).collect();
+
+        let witness_polys = get_witness::<E::G1Affine, C>(
+            self.k,
+            instances_slices.as_slice(),
+            self.row_mapping.len(),
+            &self.circuit,
+        )
+        .map_err(|e| {
+            crate::Error::InvalidSnark(format!(
+                "Synthesis: error in halo2-gpu-specific Synthesis: {:?}",
+                e
+            ))
+        })?;
+        let advices: Vec<Vec<Fr>> = witness_polys
+            .into_iter()
+            .map(|poly| {
+                poly.values
+                    .into_iter()
+                    .map(|scalar| from_scalar::<E>(&scalar))
+                    .collect::<Vec<Fr>>()
+            })
+            .collect();
+
+        Ok(advices)
     }
 }
 

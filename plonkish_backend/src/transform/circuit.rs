@@ -3,23 +3,29 @@ use halo2_proofs::plonk::ConstraintSystem;
 use zkwasm_halo2::{
     arithmetic::MultiMillerLoop,
     plonk::{
-        convert_constraint_system_fr, Circuit as ZkCircuit, ConstraintSystem as ZkConstraintSystem,
+        convert_constraint_system_fr, from_scalar, Circuit as ZkCircuit,
+        ConstraintSystem as ZkConstraintSystem,
     },
 };
 
-use crate::backend::PlonkishCircuitInfo;
+use crate::backend::WitnessEncoding;
 
 #[derive(Debug)]
-pub struct ZKWASMCircuit<E: MultiMillerLoop, C: ZkCircuit<E::Scalar>> {
-    pub circuit: C,
+pub struct ZKWASMCircuit<'a, E: MultiMillerLoop, C: ZkCircuit<E::Scalar>> {
+    pub circuit: &'a C,
+    pub config: C::Config,
+    pub cs: ConstraintSystem<Fr>,
     pub k: u32,
-    pub instances: Vec<E::Scalar>,
+    pub instances: Vec<Vec<Fr>>,
+    pub instances_scalar: Vec<Vec<E::Scalar>>,
+    pub row_mapping: Vec<usize>,
 }
-pub fn get_plonkish_info<E: MultiMillerLoop, T>(
+
+pub fn get_zkwasm_circuit<D: WitnessEncoding, E: MultiMillerLoop, T>(
     k: u32,
     circuit: &[T],
     instances: Vec<E::Scalar>,
-) -> PlonkishCircuitInfo<E::Scalar>
+) -> ZKWASMCircuit<E, T>
 where
     T: ZkCircuit<E::Scalar>,
 {
@@ -29,18 +35,18 @@ where
 
     let cs: ConstraintSystem<Fr> = convert_constraint_system_fr::<E>(cs);
 
-    let constants = cs.constants().clone();
-
     // Convert Gate Constraints.
-    PlonkishCircuitInfo {
-        k: k as usize,
-        num_instances: vec![instances.len()],
-        preprocess_polys: todo!(),
-        num_witness_polys: todo!(),
-        num_challenges: todo!(),
-        constraints: todo!(),
-        lookups: todo!(),
-        permutations: todo!(),
-        max_degree: Some(cs.degree::<true>()),
+    ZKWASMCircuit {
+        circuit,
+        config,
+        cs,
+        k,
+        instances: vec![instances
+            .clone()
+            .into_iter()
+            .map(|scalar| from_scalar::<E>(&scalar))
+            .collect::<Vec<Fr>>()],
+        instances_scalar: vec![instances],
+        row_mapping: D::row_mapping(k as usize),
     }
 }
