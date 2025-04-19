@@ -18,6 +18,8 @@ use std::{
     borrow::Cow,
     collections::{BTreeMap, HashMap},
     fmt::Debug,
+    fs::OpenOptions,
+    io::Write,
     marker::PhantomData,
 };
 
@@ -225,6 +227,13 @@ where
             format!("sum_check_prove-{num_vars}-{degree}")
         });
 
+        let mut prove_log = OpenOptions::new()
+            .create(true)
+            .write(true)
+            .truncate(true)
+            .open("/tmp/prove.txt")
+            .expect("could not open /tmp/prove.txt for writing");
+
         let mut state = ProverState::new::<R>(num_vars, sum, virtual_poly);
         let mut challenges = Vec::with_capacity(num_vars);
         let prover = P::new(&state);
@@ -237,6 +246,8 @@ where
             msg.write(transcript)?;
 
             let challenge = transcript.squeeze_challenge();
+            writeln!(prove_log, "ROUND {} CHALLENGE: {:?}", round, challenge)
+                .expect("failed to log round challenge");
             challenges.push(challenge);
 
             let timer = start_timer(|| format!("sum_check_next_round-{round}"));
@@ -254,12 +265,22 @@ where
         sum: F,
         transcript: &mut impl FieldTranscriptRead<F>,
     ) -> Result<(F, Vec<F>), Error> {
+        let mut verify_log = OpenOptions::new()
+            .create(true)
+            .write(true)
+            .truncate(true)
+            .open("/tmp/verify.txt")
+            .expect("could not open /tmp/verify.txt for writing");
         let (msgs, challenges) = {
             let mut msgs = Vec::with_capacity(num_vars);
             let mut challenges = Vec::with_capacity(num_vars);
-            for _ in 0..num_vars {
+            for round in 0..num_vars {
                 msgs.push(P::RoundMessage::read(degree, transcript)?);
-                challenges.push(transcript.squeeze_challenge());
+
+                let challenge = transcript.squeeze_challenge();
+                writeln!(verify_log, "ROUND {} CHALLENGE: {:?}", round, challenge)
+                    .expect("failed to log round challenge");
+                challenges.push(challenge);
             }
             (msgs, challenges)
         };

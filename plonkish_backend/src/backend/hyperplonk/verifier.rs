@@ -57,6 +57,7 @@ pub(crate) fn verify_sum_check<F: PrimeField>(
     )?;
 
     let pcs_query = pcs_query(expression, instances.len());
+
     let (evals_for_rotation, evals) = pcs_query
         .iter()
         .map(|query| {

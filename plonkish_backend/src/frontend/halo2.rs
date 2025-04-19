@@ -179,7 +179,7 @@ impl<'a, E: MultiMillerLoop, C: ZkCircuit<E::Scalar>> PlonkishCircuit<Fr>
 
         let (fixed, permutation) = get_preprocess_polys_and_permutations::<E::G1Affine, C>(
             k.clone(),
-            row_mapping.len(),
+            row_mapping,
             circuit,
             config,
         )
@@ -218,7 +218,7 @@ impl<'a, E: MultiMillerLoop, C: ZkCircuit<E::Scalar>> PlonkishCircuit<Fr>
         let witness_polys = get_witness::<E::G1Affine, C>(
             self.k,
             instances_slices.as_slice(),
-            self.row_mapping.len(),
+            &self.row_mapping,
             &self.circuit,
         )
         .map_err(|e| {
@@ -802,7 +802,7 @@ fn convert_expression<F: Field>(
 ) -> Expression<F> {
     expression.evaluate(
         &|constant| Expression::Constant(constant),
-        &|selector| {
+        &|selector: Selector| {
             let poly = cs.num_instance_columns() + cs.num_fixed_columns() + selector.index();
             Query::new(poly, Rotation::cur()).into()
         },

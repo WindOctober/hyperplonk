@@ -161,7 +161,6 @@ where
             lookup_compressed_polys::<_, BinaryField>(&pp.lookups, &polys, &challenges, &betas)
         };
         end_timer(timer);
-
         let timer = start_timer(|| format!("lookup_m_polys-{}", pp.lookups.len()));
         let lookup_m_polys = lookup_m_polys(&lookup_compressed_polys)?;
         end_timer(timer);
@@ -286,7 +285,6 @@ where
             &y,
             transcript,
         )?;
-
         // PCS verify
 
         let dummy_comm = Pcs::Commitment::default();
