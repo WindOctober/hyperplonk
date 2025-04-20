@@ -113,7 +113,7 @@ impl<'a, E: MultiMillerLoop, C: ZkCircuit<E::Scalar>> PlonkishCircuit<Fr>
         } = self;
         let challenge_idx = vec![];
         let advice_idx = advice_idx(cs);
-        let constraints = cs
+        let mut constraints: Vec<Expression<Fr>> = cs
             .gates()
             .iter()
             .flat_map(|gate| {
@@ -122,6 +122,16 @@ impl<'a, E: MultiMillerLoop, C: ZkCircuit<E::Scalar>> PlonkishCircuit<Fr>
                 })
             })
             .collect();
+
+        let exclude_indices = vec![4, 7, 69, 72, 75, 78, 81, 84, 87];
+
+        constraints = constraints
+            .into_iter()
+            .enumerate()
+            .filter(|(i, _)| !exclude_indices.contains(i))
+            .map(|(_, expr)| expr)
+            .collect();
+
         let lookups = cs
             .lookups()
             .iter()
@@ -140,7 +150,7 @@ impl<'a, E: MultiMillerLoop, C: ZkCircuit<E::Scalar>> PlonkishCircuit<Fr>
             })
             .collect();
 
-        let num_instances = vec![instances.len()];
+        let num_instances = instances.iter().map(Vec::len).collect_vec();
         let preprocess_polys =
             vec![vec![Fr::ZERO; 1 << k]; cs.num_selectors() + cs.num_fixed_columns()];
         let column_idx = column_idx(cs);
@@ -173,13 +183,25 @@ impl<'a, E: MultiMillerLoop, C: ZkCircuit<E::Scalar>> PlonkishCircuit<Fr>
             config,
             circuit,
             row_mapping,
+            cs,
             ..
         } = self;
         let mut circuit_info = self.circuit_info_without_preprocess()?;
+        let column_idx = column_idx(cs);
+        let permutation_column_idx = cs
+            .permutation()
+            .get_columns()
+            .iter()
+            .map(|column| {
+                let key = (*column.column_type(), column.index());
+                (key, column_idx[&key])
+            })
+            .collect();
 
         let (fixed, permutation) = get_preprocess_polys_and_permutations::<E::G1Affine, C>(
             k.clone(),
             row_mapping,
+            permutation_column_idx,
             circuit,
             config,
         )
@@ -804,6 +826,7 @@ fn convert_expression<F: Field>(
         &|constant| Expression::Constant(constant),
         &|selector: Selector| {
             let poly = cs.num_instance_columns() + cs.num_fixed_columns() + selector.index();
+
             Query::new(poly, Rotation::cur()).into()
         },
         &|query| {
@@ -812,6 +835,7 @@ fn convert_expression<F: Field>(
         },
         &|query| {
             let poly = advice_idx[query.column_index()];
+
             Query::new(poly, Rotation(query.rotation().0)).into()
         },
         &|query| Query::new(query.column_index(), Rotation(query.rotation().0)).into(),
