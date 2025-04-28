@@ -1,11 +1,9 @@
 use crate::{
     pcs::{
-        multilinear::{additive, quotients},
-        univariate::{
+        multilinear::{additive, quotients}, univariate::{
             err_too_large_deree, UnivariateKzg, UnivariateKzgProverParam,
             UnivariateKzgVerifierParam,
-        },
-        Evaluation, Point, PolynomialCommitmentScheme,
+        }, Evaluation, Evaluation_for_shift, Point, PolynomialCommitmentScheme
     },
     poly::{multilinear::MultilinearPolynomial, univariate::UnivariatePolynomial},
     util::{
@@ -147,6 +145,9 @@ where
 
         let (quotients, remainder) =
             quotients(poly, point, |_, q| UnivariatePolynomial::monomial(q));
+            
+        // 计算出来所有的quotients
+        // reminder 是 多项式的取值
         UnivariateKzg::batch_commit_and_write(&pp.commit_pp, &quotients, transcript)?;
 
         if cfg!(feature = "sanity-check") {
@@ -181,11 +182,12 @@ where
 
         let comm = if cfg!(feature = "sanity-check") {
             assert_eq!(f.evaluate(&x), M::Scalar::ZERO);
-
             UnivariateKzg::commit_monomial(&pp.open_pp, f.coeffs())
         } else {
             Default::default()
+            // UnivariateKzg::commit_monomial(&pp.open_pp, f.coeffs())
         };
+        
 
         UnivariateKzg::<M>::open(&pp.open_pp, &f, &comm, &x, &M::Scalar::ZERO, transcript)
     }
@@ -205,6 +207,23 @@ where
         let comms = comms.into_iter().collect_vec();
         let num_vars = points.first().map(|point| point.len()).unwrap_or_default();
         additive::batch_open::<_, Self>(pp, num_vars, polys, comms, points, evals, transcript)
+    }
+
+    fn batch_open_for_shift<'a>(
+        pp: &Self::ProverParam,
+        polys: impl IntoIterator<Item = &'a Self::Polynomial>,
+        comms: impl IntoIterator<Item = &'a Self::Commitment>,
+        points: &[Point<M::Scalar, Self::Polynomial>],
+        evals: &[Evaluation_for_shift<M::Scalar>],
+        transcript: &mut impl TranscriptWrite<Self::CommitmentChunk, M::Scalar>,
+    ) -> Result<(), Error>
+    where
+        Self::Commitment: 'a,
+    {
+        let polys = polys.into_iter().collect_vec();
+        let comms = comms.into_iter().collect_vec();
+        let num_vars = points.first().map(|point| point.len()).unwrap_or_default();
+        additive::batch_open_for_shift::<_, Self>(pp, num_vars, polys, comms, points, evals, transcript)
     }
 
     fn read_commitments(
@@ -260,12 +279,25 @@ where
         let comms = comms.into_iter().collect_vec();
         additive::batch_verify::<_, Self>(vp, num_vars, comms, points, evals, transcript)
     }
+    
+    fn batch_verify_for_shift<'a>(
+        vp: &Self::VerifierParam,
+        comms: impl IntoIterator<Item = &'a Self::Commitment>,
+        points: &[Point<M::Scalar, Self::Polynomial>],
+        evals: &[Evaluation_for_shift<M::Scalar>],
+        transcript: &mut impl TranscriptRead<Self::CommitmentChunk, M::Scalar>,
+    ) -> Result<(), Error> {
+        let num_vars = points.first().map(|point| point.len()).unwrap_or_default();
+        let comms = comms.into_iter().collect_vec();
+        additive::batch_verify_for_shift::<_, Self>(vp, num_vars, comms, points, evals, transcript)
+    }   
 }
 
 fn eval_and_quotient_scalars<F: Field>(y: F, x: F, z: F, u: &[F]) -> (F, Vec<F>) {
     let num_vars = u.len();
 
     let squares_of_x = squares(x).take(num_vars + 1).collect_vec();
+    //offsets＿of＿x ：计算一个偏移量序列 $O=\left[O_0, \ldots, O_{n-1}\right]$ ，其中 $O_k=\prod_{j=k+1}^{n-1} s_j=$ $\prod_{j=k+1}^{n-1} x^{2^j}$ 。这个序列与多线性求值和转换有关。
     let offsets_of_x = {
         let mut offsets_of_x = squares_of_x
             .iter()
@@ -279,6 +311,7 @@ fn eval_and_quotient_scalars<F: Field>(y: F, x: F, z: F, u: &[F]) -> (F, Vec<F>)
         offsets_of_x.reverse();
         offsets_of_x
     };
+    // vs ：计算另一个序列 $V=\left[V_0, \ldots, V_n\right]$ ，其中 $V_k=\left(s_n-1\right) /\left(s_k-1\right)=\left(x^{2^n}-\right.$ 1）$/\left(x^{2^k}-1\right)$ 。可以证明 $V_k=\sum_{j=0}^{2^{n-k}-1}\left(x^{2^k}\right)^j=\Phi_{n-k}\left(x^{2^k}\right)$（参见论文 中 $\Phi$ 的定义）。
     let vs = {
         let v_numer = squares_of_x[num_vars] - F::ONE;
         let mut v_denoms = squares_of_x
@@ -291,6 +324,8 @@ fn eval_and_quotient_scalars<F: Field>(y: F, x: F, z: F, u: &[F]) -> (F, Vec<F>)
             .map(|v_denom| v_numer * v_denom)
             .collect_vec()
     };
+
+
     let q_scalars = izip!(powers(y), offsets_of_x, squares_of_x, &vs, &vs[1..], u)
         .map(|(power_of_y, offset_of_x, square_of_x, v_i, v_j, u_i)| {
             -(power_of_y * offset_of_x + z * (square_of_x * v_j - *u_i * v_i))

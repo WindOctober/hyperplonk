@@ -1,0 +1,3 @@
+[unstable]
+namespaced-features = true
+weak-dep-features = true 

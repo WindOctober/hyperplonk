@@ -2,6 +2,7 @@ use crate::{
     poly::Polynomial,
     util::{
         arithmetic::Field,
+        expression::Rotation,
         transcript::{TranscriptRead, TranscriptWrite},
         DeserializeOwned, Serialize,
     },
@@ -95,6 +96,23 @@ pub trait PolynomialCommitmentScheme<F: Field>: Clone + Debug {
         Self::Polynomial: 'a,
         Self::Commitment: 'a;
 
+
+    fn batch_open_for_shift<'a>(
+        pp: &Self::ProverParam,
+        polys: impl IntoIterator<Item = &'a Self::Polynomial>,
+        comms: impl IntoIterator<Item = &'a Self::Commitment>,
+        points: &[Point<F, Self::Polynomial>],
+        evals: &[Evaluation_for_shift<F>],
+        transcript: &mut impl TranscriptWrite<Self::CommitmentChunk, F>,
+    ) -> Result<(), Error>
+    where
+        Self::Polynomial: 'a,
+        Self::Commitment: 'a,
+    {
+        Err(Error::NotImplemented("batch_open_for_shift not implemented".to_string()))
+    }
+
+
     fn read_commitment(
         vp: &Self::VerifierParam,
         transcript: &mut impl TranscriptRead<Self::CommitmentChunk, F>,
@@ -127,6 +145,20 @@ pub trait PolynomialCommitmentScheme<F: Field>: Clone + Debug {
     ) -> Result<(), Error>
     where
         Self::Commitment: 'a;
+    
+
+    fn batch_verify_for_shift<'a>(
+        vp: &Self::VerifierParam,
+        comms: impl IntoIterator<Item = &'a Self::Commitment>,
+        points: &[Point<F, Self::Polynomial>],
+        evals: &[Evaluation_for_shift<F>],
+        transcript: &mut impl TranscriptRead<Self::CommitmentChunk, F>,
+    ) -> Result<(), Error>
+    where
+        Self::Commitment: 'a
+    {
+        Err(Error::NotImplemented("batch_verify_for_shift not implemented".to_string()))
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -147,6 +179,32 @@ impl<F> Evaluation<F> {
 
     pub fn point(&self) -> usize {
         self.point
+    }
+
+    pub fn value(&self) -> &F {
+        &self.value
+    }
+}
+
+
+#[derive(Clone, Debug)]
+pub struct Evaluation_for_shift<F> {
+    poly: usize,
+    rotation: Rotation,
+    value: F,
+}
+
+impl<F> Evaluation_for_shift<F> {
+    pub fn new(poly: usize, rotation: Rotation, value: F) -> Self {
+        Self { poly, rotation, value }
+    }
+
+    pub fn poly(&self) -> usize {
+        self.poly
+    }
+
+    pub fn rotation(&self) -> Rotation {
+        self.rotation
     }
 
     pub fn value(&self) -> &F {

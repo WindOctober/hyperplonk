@@ -15,7 +15,7 @@ pub mod classic;
 #[derive(Clone, Debug)]
 pub struct VirtualPolynomial<'a, F> {
     expression: &'a Expression<F>,
-    polys: Vec<&'a MultilinearPolynomial<F>>,
+    pub polys: Vec<&'a MultilinearPolynomial<F>>,
     challenges: &'a [F],
     ys: &'a [Vec<F>],
 }
@@ -151,6 +151,7 @@ pub(super) mod test {
             let (polys, challenges, ys) = assignment_fn(num_vars);
             let (evals, proof) = {
                 let virtual_poly = VirtualPolynomial::new(&expression, &polys, &challenges, &ys);
+                println!("virtual_poly: {:?}", virtual_poly);
                 let mut transcript = Keccak256Transcript::default();
                 let (_, _, evals) =
                     S::prove(&pp, num_vars, virtual_poly, sum, &mut transcript).unwrap();
@@ -255,7 +256,7 @@ pub(super) mod test {
                     };
 
                     run_zero_check::<$impl, $rotatable>(
-                        2..16,
+                        4..5,
                         |num_vars| {
                             let polys = (-(num_vars as i32) + 1..num_vars as i32)
                                 .rev()

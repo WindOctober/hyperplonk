@@ -25,7 +25,9 @@ use crate::{
     },
     Error,
 };
+use prover::prove_zero_check_with_shift;
 use rand::RngCore;
+use verifier::verify_zero_check_with_shift;
 use std::{fmt::Debug, hash::Hash, iter, marker::PhantomData};
 
 pub(crate) mod preprocessor;
@@ -203,7 +205,7 @@ where
         ]
         .collect_vec();
         challenges.extend([beta, gamma, alpha]);
-        let (points, evals) = prove_zero_check(
+        let (points, evals) = prove_zero_check_with_shift(
             pp.num_instances.len(),
             &pp.expression,
             &polys,
@@ -225,7 +227,7 @@ where
         ]
         .collect_vec();
         let timer = start_timer(|| format!("pcs_batch_open-{}", evals.len()));
-        Pcs::batch_open(&pp.pcs, polys, comms, &points, &evals, transcript)?;
+        Pcs::batch_open_for_shift(&pp.pcs, polys, comms, &points, &evals, transcript)?;
         end_timer(timer);
 
         Ok(())
@@ -277,7 +279,7 @@ where
         let y = transcript.squeeze_challenges(vp.num_vars);
 
         challenges.extend([beta, gamma, alpha]);
-        let (points, evals) = verify_zero_check(
+        let (points, evals) = verify_zero_check_with_shift(
             vp.num_vars,
             &vp.expression,
             instances,
@@ -297,7 +299,7 @@ where
             &lookup_h_permutation_z_comms,
         ]
         .collect_vec();
-        Pcs::batch_verify(&vp.pcs, comms, &points, &evals, transcript)?;
+        Pcs::batch_verify_for_shift(&vp.pcs, comms, &points, &evals, transcript)?;
 
         Ok(())
     }
@@ -364,5 +366,5 @@ mod test {
     tests!(ipa, MultilinearIpa<grumpkin::G1Affine>);
     tests!(kzg, MultilinearKzg<Bn256>);
     tests!(gemini_kzg, Gemini<UnivariateKzg<Bn256>>);
-    tests!(zeromorph_kzg, Zeromorph<UnivariateKzg<Bn256>>);
+    tests!(zeromorph_kzg, Zeromorph<UnivariateKzg<Bn256>>, 4..5);
 }

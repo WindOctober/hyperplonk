@@ -19,4 +19,5 @@ pub enum Error {
     InvalidSnark(String),
     Serialization(String),
     Transcript(std::io::ErrorKind, String),
+    NotImplemented(String),
 }
