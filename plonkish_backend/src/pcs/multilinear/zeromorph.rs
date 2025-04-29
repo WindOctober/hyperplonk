@@ -418,7 +418,7 @@ where
              F_d
          };
          
-        UnivariateKzg::commit_and_write(&pp.commit_pp, &F_d, transcript)?;
+        // let comm = UnivariateKzg::commit_and_write(&pp.commit_pp, &F_d, transcript)?;
 
         let comm = if cfg!(feature = "sanity-check") {
             assert_eq!(F_d.evaluate(&x), M::Scalar::ZERO);
@@ -461,7 +461,8 @@ where
         let bases = chain![[q_hat_comm, comm.0, vp.g1()], q_comms].collect_vec();
         let c: M::G1Affine = variable_base_msm(&scalars, &bases).into();
 
-        // let c= transcript.read_commitment()?;
+        // let c = transcript.read_commitment()?;
+
         let pi = transcript.read_commitment()?;
 
         M::pairings_product_is_identity(&[
@@ -509,29 +510,34 @@ where
             [q_d_hat_comm.0, comm.0, vp.g1()], // Use .0 for comms, vp.g1() is already G1Affine
             q_comms_d.iter().map(|c| c.0)      // Use .0 for quotient comms
         ].collect_vec();
+        
         // 使用 MSM 计算重构的承诺 C
         let reconstructed_commitment_c: M::G1Affine = variable_base_msm(&scalars, &bases).into();
 
-
-        let F_d = transcript.read_commitment()?;
 
         // 5. 从 transcript 读取最终的单变量 KZG 打开证明 pi_d (由 prover 的 UnivariateKzg::open 生成)
         let pi_d = transcript.read_commitment()?;
 
         // 6. 执行最终的配对检查 (验证 C 在点 x 打开为 0，使用证明 pi_d)
+        // if !M::pairings_product_is_identity(&[
+        //     (&reconstructed_commitment_c, &(-vp.s_offset_g2).into()),
+        //     (&pi_d, &(vp.s_g2() - (vp.g2() * x).into()).to_affine().into()),
+        // ]) {
+        //     return Err(Error::InvalidPcsOpen(format!(
+        //         "Invalid Zeromorph KZG shifted open for rotation {}", rotation.0
+        //     )));
+        // }
+        // Ok(())
+
         M::pairings_product_is_identity(&[
-            (&F_d, &(-vp.s_offset_g2).into()),
+            (&reconstructed_commitment_c, &(-vp.s_offset_g2).into()),
             (&pi_d, &(vp.s_g2() - (vp.g2() * x).into()).to_affine().into()),
-        ]);
-        Ok(())
-        // .then_some(())
-        // .ok_or_else(|| {
-        //     println!("F_d: {:?}", F_d);
-        //     println!("pi_d: {:?}", pi_d);
-        //     Error::InvalidPcsOpen(format!(
-        //         "Invalid Zeromorph KZG shifted open for rotation {}", rotation.0))} // 使用 rotation.0 获取带符号距
-        // )
-        
+        ])
+        .then_some(())
+        .ok_or_else(|| {
+            Error::InvalidPcsOpen(format!(
+                "Invalid Zeromorph KZG shifted open for rotation {}", rotation.0))} // 使用 rotation.0 获取带符号距
+        )
         // Ok(())
     } 
 

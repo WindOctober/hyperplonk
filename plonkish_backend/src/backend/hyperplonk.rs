@@ -425,7 +425,7 @@ where
         Pcs::batch_open_for_shift(&pp.pcs, polys, comms, &points, &evals, transcript)?;
         end_timer(timer);
 
-        println!("prove_with_shift done");
+        // println!("prove_with_shift done");
         Ok(())
     }
 

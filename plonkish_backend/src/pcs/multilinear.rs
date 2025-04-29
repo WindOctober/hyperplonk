@@ -128,7 +128,7 @@ mod additive {
         },
         Error,
     };
-    use std::{borrow::Cow, collections::HashMap, ops::Deref, ptr::addr_of};
+    use std::{borrow::Cow, collections::{BTreeMap, HashMap}, ops::Deref, ptr::addr_of};
 
     type SumCheck<F> = ClassicSumCheck<CoefficientsProver<F>>;
 
@@ -240,6 +240,7 @@ mod additive {
         } else {
             Pcs::Commitment::default()
         };
+
         Pcs::open(
             pp,
             &g_prime,
@@ -384,7 +385,7 @@ mod additive {
         }
 
         // Group evaluations by rotation
-        let mut evals_by_rotation: HashMap<Rotation, Vec<&Evaluation_for_shift<F>>> = HashMap::new();
+        let mut evals_by_rotation: BTreeMap<Rotation, Vec<&Evaluation_for_shift<F>>> = BTreeMap::new();
         for eval in eval_rotations {
             evals_by_rotation.entry(eval.rotation()).or_default().push(eval);
         }
@@ -593,7 +594,7 @@ mod additive {
 
        if !eval_rotations.is_empty() {
            // 按 rotation 分组
-           let mut evals_by_rotation : HashMap<Rotation, Vec<&Evaluation_for_shift<F>>> = HashMap::new();
+           let mut evals_by_rotation : BTreeMap<Rotation, Vec<&Evaluation_for_shift<F>>> = BTreeMap::new();
            for eval in eval_rotations {
                evals_by_rotation.entry(eval.rotation()).or_default().push(eval);
            }

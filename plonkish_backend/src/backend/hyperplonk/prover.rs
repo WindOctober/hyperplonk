@@ -440,8 +440,6 @@ pub(crate) fn prove_sum_check_with_shift<F: PrimeField>(
         transcript,
     )?;
 
-    println!("test: {:?}", test);
-    println!("evals: {:?}", evals);
     // println!("x: {:?}", x);
     // println!("polys_evaluate_for_rotation: {:?}", rotation_eval(&x, Rotation::cur(), &polys[0].evaluate_for_rotation(&x, Rotation::cur())));
     // println!("polys_evaluate_for_rotation: {:?}", rotation_eval(&x, Rotation::cur(), &polys[18].evaluate_for_rotation(&x, Rotation(0))));
