@@ -113,7 +113,7 @@ impl<'a, E: MultiMillerLoop, C: ZkCircuit<E::Scalar>> PlonkishCircuit<Fr>
         } = self;
         let challenge_idx = vec![];
         let advice_idx = advice_idx(cs);
-        let mut constraints: Vec<Expression<Fr>> = cs
+        let constraints: Vec<Expression<Fr>> = cs
             .gates()
             .iter()
             .flat_map(|gate| {
@@ -121,15 +121,6 @@ impl<'a, E: MultiMillerLoop, C: ZkCircuit<E::Scalar>> PlonkishCircuit<Fr>
                     convert_expression(cs, &advice_idx, &challenge_idx, expression)
                 })
             })
-            .collect();
-
-        let exclude_indices = vec![4, 7, 69, 72, 75, 78, 81, 84, 87];
-
-        constraints = constraints
-            .into_iter()
-            .enumerate()
-            .filter(|(i, _)| !exclude_indices.contains(i))
-            .map(|(_, expr)| expr)
             .collect();
 
         let lookups = cs
