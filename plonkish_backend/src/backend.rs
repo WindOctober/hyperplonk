@@ -43,6 +43,25 @@ pub trait PlonkishBackend<F: Field>: Clone + Debug {
         transcript: &mut impl TranscriptRead<CommitmentChunk<F, Self::Pcs>, F>,
         rng: impl RngCore,
     ) -> Result<(), Error>;
+
+    fn prove_with_shift(
+        pp: &Self::ProverParam,
+        circuit: &impl PlonkishCircuit<F>,
+        transcript: &mut impl TranscriptWrite<CommitmentChunk<F, Self::Pcs>, F>,
+        rng: impl RngCore,
+    ) -> Result<(), Error> {
+        Err(Error::NotImplemented("prove_with_shift not implemented".to_string()))
+    }
+
+    fn verify_with_shift(
+        vp: &Self::VerifierParam,
+        instances: &[Vec<F>],
+        transcript: &mut impl TranscriptRead<CommitmentChunk<F, Self::Pcs>, F>,
+        rng: impl RngCore,
+    ) -> Result<(), Error> {
+        Err(Error::NotImplemented("verify_with_shift not implemented".to_string()))
+    }
+
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -233,6 +252,7 @@ pub(crate) mod test {
             end_timer(timer);
 
             let timer = start_timer(|| format!("verify-{num_vars}"));
+            println!("================================");
             let result = {
                 let mut transcript = T::from_proof((), proof.as_slice());
                 Pb::verify(&vp, instances, &mut transcript, seeded_std_rng())

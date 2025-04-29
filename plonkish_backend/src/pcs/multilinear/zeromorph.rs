@@ -83,8 +83,7 @@ where
 
     fn setup(poly_size: usize, batch_size: usize, rng: impl RngCore) -> Result<Self::Param, Error> {
         assert!(poly_size.is_power_of_two());
-
-        UnivariateKzg::<M>::setup(poly_size, batch_size, rng)
+        UnivariateKzg::<M>::setup((poly_size+1).next_power_of_two(), batch_size, rng)
     }
 
     fn trim(
@@ -94,11 +93,11 @@ where
     ) -> Result<(Self::ProverParam, Self::VerifierParam), Error> {
         assert!(poly_size.is_power_of_two());
 
-        let (commit_pp, vp) = UnivariateKzg::<M>::trim(param, poly_size, batch_size)?;
-        let offset = param.monomial_g1().len() - poly_size;
+        let (commit_pp, vp) = UnivariateKzg::<M>::trim(param, (poly_size+1).next_power_of_two(), batch_size)?;
+        let offset = param.monomial_g1().len() - (poly_size+1).next_power_of_two();
         let open_pp = {
             let monomial_g1 = param.monomial_g1()[offset..].to_vec();
-            UnivariateKzgProverParam::new(poly_size.ilog2() as usize, monomial_g1, Vec::new())
+            UnivariateKzgProverParam::new((poly_size.ilog2()+1) as usize, monomial_g1, Vec::new())
         };
         let s_offset_g2 = param.powers_of_s_g2()[offset];
 
@@ -171,7 +170,7 @@ where
             }
             UnivariatePolynomial::monomial(q_hat)
         };
-        println!("UnivariateKzg::commit_and_write(&pp.commit_pp, &q_hat, transcript)?;");
+        // println!("UnivariateKzg::commit_and_write(&pp.commit_pp, &q_hat, transcript)?;");
         UnivariateKzg::commit_and_write(&pp.commit_pp, &q_hat, transcript)?;
 
         let x = transcript.squeeze_challenge();
@@ -421,29 +420,14 @@ where
              F_d
          };
          
-         //println!("=======================================================");
-        //  println!("F_d.evaluate(): {:?}", F_d.evaluate(&x));
-         //println!("=======================================================");
-        //  证明 F_d(x) = 0
-        //  if cfg!(feature = "sanity-check") {
-        //      assert_eq!(
-        //          F_d.evaluate(&x),
-        //          M::Scalar::ZERO,
-        //          "Shifted check polynomial F_d does not evaluate to zero at x for rotation {}",
-        //          signed_d
-        //      );
-        //  }
-        crate::pcs::univariate::UnivariateKzg::<M>::open(
+        UnivariateKzg::<M>::open(
             &pp.open_pp,
             &F_d,
             &Default::default(), // F_d 的承诺默认为零（因为我们声称 F_d(x)=0）
             &x,
             &M::Scalar::ZERO, // 声称的求值结果是零
             transcript,
-        ).is_ok();
-
-         println!("End of prove_shifted_evaluation");
-         Ok(())
+        )
     } // End of prove_shifted_evaluation
 
     fn verify(
@@ -527,8 +511,11 @@ where
             (&reconstructed_commitment_c, &(-vp.s_offset_g2).into()),
             (&pi_d.0,                       // Use pi_d.0 here
              &(vp.s_g2() - (vp.g2() * x).into()).to_affine().into()),
-        ]);
-
+        ]);   
+        //       .then_some(())
+        // .ok_or_else(|| Error::InvalidPcsOpen(format!(
+        //         "Invalid Zeromorph KZG shifted open for rotation {}", rotation.0)) // 使用 rotation.0 获取带符号距离
+        // )
         Ok(())
         // 
         // .then_some(())

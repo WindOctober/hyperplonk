@@ -605,8 +605,6 @@ mod additive {
                     num_rotated.next_power_of_two().ilog2() as usize
                 };
 
-               // Prover 在 batch_open_for_shift 中 squeeze 了这些挑战
-               let ell_rotated = num_rotated.next_power_of_two().ilog2() as usize;
                let challenges_rotated_combine = transcript.squeeze_challenges(ell_rotated);
                let eq_xt_rotated = MultilinearPolynomial::eq_xy(&challenges_rotated_combine);
 

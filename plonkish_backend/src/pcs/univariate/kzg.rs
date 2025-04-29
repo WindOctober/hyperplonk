@@ -207,6 +207,7 @@ where
         // TODO: Support arbitrary degree.
         assert!(poly_size.is_power_of_two());
         assert!(poly_size.ilog2() <= M::Scalar::S);
+        
 
         // let s = M::Scalar::random(rng);
         let s = M::Scalar::from(1);
