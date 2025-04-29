@@ -517,11 +517,6 @@ where
         //         "Invalid Zeromorph KZG shifted open for rotation {}", rotation.0)) // 使用 rotation.0 获取带符号距离
         // )
         Ok(())
-        // 
-        // .then_some(())
-        // .ok_or_else(|| Error::InvalidPcsOpen(format!(
-                // "Invalid Zeromorph KZG shifted open for rotation {}", rotation.0)) // 使用 rotation.0 获取带符号距离
-        // )
     } 
 
 

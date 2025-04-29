@@ -246,7 +246,7 @@ pub(crate) mod test {
             let timer = start_timer(|| format!("prove-{num_vars}"));
             let proof = {
                 let mut transcript = T::new(());
-                Pb::prove(&pp, &circuit, &mut transcript, seeded_std_rng()).unwrap();
+                Pb::prove_with_shift(&pp, &circuit, &mut transcript, seeded_std_rng()).unwrap();
                 transcript.into_proof()
             };
             end_timer(timer);
@@ -255,7 +255,7 @@ pub(crate) mod test {
             println!("================================");
             let result = {
                 let mut transcript = T::from_proof((), proof.as_slice());
-                Pb::verify(&vp, instances, &mut transcript, seeded_std_rng())
+                Pb::verify_with_shift(&vp, instances, &mut transcript, seeded_std_rng())
             };
             assert_eq!(result, Ok(()));
             end_timer(timer);
