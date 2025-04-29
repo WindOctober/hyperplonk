@@ -1,4 +1,6 @@
 use crate::{
+    piop::sum_check::classic::{ClassicSumCheckRoundMessage},
+    piop::sum_check::classic::eval::Evaluations, // 假设 Evaluations 在这里
     poly::multilinear::MultilinearPolynomial,
     util::{
         arithmetic::{inner_product, powers, product, Field, PrimeField},
@@ -57,6 +59,7 @@ pub trait SumCheck<F: Field>: Clone + Debug {
         transcript: &mut impl FieldTranscriptRead<F>,
     ) -> Result<(F, Vec<F>), Error>;
 }
+
 
 pub fn evaluate<F: PrimeField, R: Rotatable + From<usize>>(
     expression: &Expression<F>,

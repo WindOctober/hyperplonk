@@ -425,6 +425,7 @@ where
         Pcs::batch_open_for_shift(&pp.pcs, polys, comms, &points, &evals, transcript)?;
         end_timer(timer);
 
+        println!("prove_with_shift done");
         Ok(())
     }
 
@@ -561,5 +562,5 @@ mod test {
     tests!(ipa, MultilinearIpa<grumpkin::G1Affine>);
     tests!(kzg, MultilinearKzg<Bn256>);
     tests!(gemini_kzg, Gemini<UnivariateKzg<Bn256>>);
-    tests!(zeromorph_kzg, Zeromorph<UnivariateKzg<Bn256>>, 4..5);
+    tests!(zeromorph_kzg, Zeromorph<UnivariateKzg<Bn256>>, 5..6);
 }

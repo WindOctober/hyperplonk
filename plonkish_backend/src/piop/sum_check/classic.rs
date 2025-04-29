@@ -22,7 +22,7 @@ use std::{
 };
 
 mod coeff;
-mod eval;
+pub mod eval;
 
 pub use coeff::CoefficientsProver;
 pub use eval::EvaluationsProver;
@@ -234,7 +234,6 @@ where
             let msg = prover.prove_round(&state);
             end_timer(timer);
             msg.write(transcript)?;
-
             let challenge = transcript.squeeze_challenge();
             challenges.push(challenge);
             let timer = start_timer(|| format!("sum_check_next_round-{round}"));

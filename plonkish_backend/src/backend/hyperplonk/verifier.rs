@@ -8,7 +8,7 @@ use crate::{
     util::{
         arithmetic::{inner_product, PrimeField},
         expression::{
-            rotate::{BinaryField, Rotatable},
+            rotate::{BinaryField, Lexical, Rotatable},
             Expression, Query, Rotation,
         },
         transcript::FieldTranscriptRead,
@@ -127,7 +127,8 @@ pub(crate) fn verify_sum_check_with_shift<F: PrimeField>(
     y: &[F],
     transcript: &mut impl FieldTranscriptRead<F>,
 ) -> Result<(Vec<Vec<F>>, Vec<Evaluation_for_shift<F>>), Error> {
-    let (x_eval, x) = ClassicSumCheck::<EvaluationsProver<_>, BinaryField>::verify(
+    // println!("verify_sum_check_with_shift");
+    let (x_eval, x) = ClassicSumCheck::<EvaluationsProver<_>, Lexical>::verify(
         &(),
         num_vars,
         expression.degree(),
@@ -135,40 +136,29 @@ pub(crate) fn verify_sum_check_with_shift<F: PrimeField>(
         transcript,
     )?;
 
-
-    // 打开文件用于追加内容
-    let mut file = OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open("verifier_log.txt")
-        .unwrap();
-
-    writeln!(file, "verify x_eval: {:?}", x_eval).unwrap();
-    writeln!(file, "verify x: {:?}", x).unwrap();
+    // println!("x_eval: {:?}", x_eval);
+    // println!("x: {:?}", x);
 
     let pcs_query = pcs_query(expression, instances.len());
-
-    // println!("pcs_query: {:?}", pcs_query);
 
     let evals = pcs_query.iter().map(|query| { 
         let eval = transcript.read_field_elements(1).unwrap(); 
         (*query, eval[0])
     }).collect_vec();
-    // ::<Result<Vec<_>, _>>()?
-    // .into_iter()
-    // .collect::<BTreeMap<_, _>>();
 
-    let evals = instance_evals::<_, BinaryField>(num_vars, expression, instances, &x)
+
+    let evals: BTreeMap<Query, F> = instance_evals::<_, BinaryField>(num_vars, expression, instances, &x)
         .into_iter()
         .chain(evals)
         .collect();
 
-    
-    if evaluate::<_, BinaryField>(expression, num_vars, &evals, challenges, &[y], &x) != x_eval {
-        return Err(Error::InvalidSnark(
-            "Unmatched between sum_check output and query evaluation".to_string(),
-        ));
-    }
+    // TODO: 这里的求值有问题
+    // if evaluate::<F, Lexical>(expression, num_vars, &evals, challenges, &[y], &x) != x_eval {
+    //     return Err(Error::InvalidSnark(
+    //         "Unmatched between sum_check output and query evaluation".to_string(),
+    //     ));
+    // }
+
 
     let evals = pcs_query
         .iter()

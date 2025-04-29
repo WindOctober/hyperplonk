@@ -252,7 +252,6 @@ pub(crate) mod test {
             end_timer(timer);
 
             let timer = start_timer(|| format!("verify-{num_vars}"));
-            println!("================================");
             let result = {
                 let mut transcript = T::from_proof((), proof.as_slice());
                 Pb::verify_with_shift(&vp, instances, &mut transcript, seeded_std_rng())

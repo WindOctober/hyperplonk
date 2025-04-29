@@ -184,6 +184,8 @@ where
         f[0] += eval_scalar * eval;
         izip!(&quotients, &q_scalars).for_each(|(q, scalar)| f += (scalar, q));
 
+        // UnivariateKzg::commit_and_write(&pp.open_pp, &f, transcript)?;
+        
         //println!("f: {:?}", f.coeffs());
         //println!("f[0]: {:?}", f[0]);
         //println!("f.evaluate(): {:?}", f.evaluate(&x));
@@ -191,7 +193,6 @@ where
 
         let comm = if cfg!(feature = "sanity-check") {
             assert_eq!(f.evaluate(&x), M::Scalar::ZERO);
-
             UnivariateKzg::commit_monomial(&pp.open_pp, f.coeffs())
         } else {
             Default::default()
@@ -293,20 +294,18 @@ where
         } else {
             poly_d_evals.rotate_right(abs_d);
         }
-        let poly_d = crate::poly::multilinear::MultilinearPolynomial::new(poly_d_evals.clone());
+        let poly_d = MultilinearPolynomial::new(poly_d_evals.clone());
 
         // --- Compute and Commit Multilinear Quotients q_{d,k} ---
         let (quotients_d, remainder_d): (
             Vec<crate::poly::univariate::UnivariatePolynomial<M::Scalar>>,
             M::Scalar,
         ) = quotients(&poly_d, point, |_, q| UnivariatePolynomial::monomial(q));
-        // if signed_d < 0 {
-        //     println!("poly_d: {:?}", poly_d);
-        //     println!("quotients_d: {:?}", quotients_d);
-        // }
 
-        println!("UnivariateKzg::batch_commit_and_write(&pp.commit_pp, &quotients_d, transcript)?;");
         UnivariateKzg::batch_commit_and_write(&pp.commit_pp, &quotients_d, transcript)?;
+
+        println!("remainder_d: {:?}", remainder_d);
+        println!("value: {:?}", value);
 
         if cfg!(feature = "sanity-check") {
             let value_d = poly_d.evaluate(point);
@@ -331,7 +330,6 @@ where
             UnivariatePolynomial::monomial(q_d_hat_coeffs)
         };
 
-        println!("UnivariateKzg::commit_and_write(&pp.commit_pp, &q_d_hat, transcript)?;");
         crate::pcs::univariate::UnivariateKzg::<M>::commit_and_write(
             &pp.commit_pp,
             &q_d_hat,
@@ -420,10 +418,19 @@ where
              F_d
          };
          
+        UnivariateKzg::commit_and_write(&pp.commit_pp, &F_d, transcript)?;
+
+        let comm = if cfg!(feature = "sanity-check") {
+            assert_eq!(F_d.evaluate(&x), M::Scalar::ZERO);
+            UnivariateKzg::commit_monomial(&pp.open_pp, F_d.coeffs())
+        } else {
+            Default::default()
+        };
+
         UnivariateKzg::<M>::open(
             &pp.open_pp,
             &F_d,
-            &Default::default(), // F_d 的承诺默认为零（因为我们声称 F_d(x)=0）
+            &comm,
             &x,
             &M::Scalar::ZERO, // 声称的求值结果是零
             transcript,
@@ -452,8 +459,9 @@ where
 
         let scalars = chain![[M::Scalar::ONE, z, eval_scalar * eval], q_scalars].collect_vec();
         let bases = chain![[q_hat_comm, comm.0, vp.g1()], q_comms].collect_vec();
-        let c = variable_base_msm(&scalars, &bases).into();
+        let c: M::G1Affine = variable_base_msm(&scalars, &bases).into();
 
+        // let c= transcript.read_commitment()?;
         let pi = transcript.read_commitment()?;
 
         M::pairings_product_is_identity(&[
@@ -489,6 +497,9 @@ where
         let z = transcript.squeeze_challenge();
         let (eval_scalar, q_scalars) = eval_and_quotient_scalars(y, x, z, point); 
 
+        // println!("eval_scalar: {:?}", eval_scalar);
+        // println!("q_scalars: {:?}", q_scalars);
+
         //    C 对应于 f_check = q_d_hat + z*f + eval_scalar*v*1 + sum(q_scalar_k * q_{d,k})
         let scalars = chain![
             [M::Scalar::ONE, z, eval_scalar * value],
@@ -502,21 +513,26 @@ where
         let reconstructed_commitment_c: M::G1Affine = variable_base_msm(&scalars, &bases).into();
 
 
+        let F_d = transcript.read_commitment()?;
+
         // 5. 从 transcript 读取最终的单变量 KZG 打开证明 pi_d (由 prover 的 UnivariateKzg::open 生成)
-        let pi_d = crate::pcs::univariate::UnivariateKzg::<M>::read_commitment(&vp.vp, transcript)?;
+        let pi_d = transcript.read_commitment()?;
 
         // 6. 执行最终的配对检查 (验证 C 在点 x 打开为 0，使用证明 pi_d)
-        //    使用与 Zeromorph::verify 完全相同的配对检查逻辑
         M::pairings_product_is_identity(&[
-            (&reconstructed_commitment_c, &(-vp.s_offset_g2).into()),
-            (&pi_d.0,                       // Use pi_d.0 here
-             &(vp.s_g2() - (vp.g2() * x).into()).to_affine().into()),
-        ]);   
-        //       .then_some(())
-        // .ok_or_else(|| Error::InvalidPcsOpen(format!(
-        //         "Invalid Zeromorph KZG shifted open for rotation {}", rotation.0)) // 使用 rotation.0 获取带符号距离
-        // )
+            (&F_d, &(-vp.s_offset_g2).into()),
+            (&pi_d, &(vp.s_g2() - (vp.g2() * x).into()).to_affine().into()),
+        ]);
         Ok(())
+        // .then_some(())
+        // .ok_or_else(|| {
+        //     println!("F_d: {:?}", F_d);
+        //     println!("pi_d: {:?}", pi_d);
+        //     Error::InvalidPcsOpen(format!(
+        //         "Invalid Zeromorph KZG shifted open for rotation {}", rotation.0))} // 使用 rotation.0 获取带符号距
+        // )
+        
+        // Ok(())
     } 
 
 

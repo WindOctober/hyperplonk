@@ -393,6 +393,9 @@ mod additive {
         for (rotation, rotation_evals) in evals_by_rotation {
                 // Extract necessary info for this rotation group
                 let polys_rotated: Vec<&MultilinearPolynomial<F>> = rotation_evals.iter().map(|eval| polys[eval.poly()]).collect();
+                // println!("=======================================================");
+                // println!("polys_rotated: {:?}", polys_rotated);
+                // println!("=======================================================");
                 let comms_rotated: Vec<&Pcs::Commitment> = rotation_evals.iter().map(|eval| comms[eval.poly()]).collect();
                 // Get references to the values
                 let values_rotated: Vec<&F> = rotation_evals.iter().map(|eval| eval.value()).collect();
@@ -468,7 +471,7 @@ mod additive {
                 // let final_merged_value = merged_value * merged_scalar;
 
                 // Calculate the commitment to the merged polynomial for this rotation using MSM
-                let merged_comm_rotated = if !comms_rotated.is_empty() {
+                let merged_comm_rotated = if cfg!(feature = "sanity-check") {
                     // Calculate scalars for MSM: eq_xt_i * overall_scalar
                     let scalars = eq_xt_rotated.evals()[..num_rotated]
                         .iter()
