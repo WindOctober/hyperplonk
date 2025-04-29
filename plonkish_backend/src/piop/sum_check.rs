@@ -151,7 +151,6 @@ pub(super) mod test {
             let (polys, challenges, ys) = assignment_fn(num_vars);
             let (evals, proof) = {
                 let virtual_poly = VirtualPolynomial::new(&expression, &polys, &challenges, &ys);
-                println!("virtual_poly: {:?}", virtual_poly);
                 let mut transcript = Keccak256Transcript::default();
                 let (_, _, evals) =
                     S::prove(&pp, num_vars, virtual_poly, sum, &mut transcript).unwrap();

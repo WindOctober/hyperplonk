@@ -148,7 +148,7 @@ pub(crate) fn verify_sum_check_with_shift<F: PrimeField>(
 
     let pcs_query = pcs_query(expression, instances.len());
 
-    println!("pcs_query: {:?}", pcs_query);
+    // println!("pcs_query: {:?}", pcs_query);
 
     let evals = pcs_query.iter().map(|query| { 
         let eval = transcript.read_field_elements(1).unwrap(); 
@@ -163,7 +163,6 @@ pub(crate) fn verify_sum_check_with_shift<F: PrimeField>(
         .chain(evals)
         .collect();
 
-    println!("evals: {:?}", evals);
     
     if evaluate::<_, BinaryField>(expression, num_vars, &evals, challenges, &[y], &x) != x_eval {
         return Err(Error::InvalidSnark(

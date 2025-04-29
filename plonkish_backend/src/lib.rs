@@ -20,4 +20,8 @@ pub enum Error {
     Serialization(String),
     Transcript(std::io::ErrorKind, String),
     NotImplemented(String),
+    InternalError(String),
+    InvalidRotation(String),
+    InvalidQuotient(String),
+    InvalidInput(String),
 }

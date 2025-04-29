@@ -372,10 +372,6 @@ pub(crate) fn prove_sum_check<F: PrimeField>(
         transcript,
     )?;
 
-    println!("evals: {:?}", evals);
-    println!("x: {:?}", x);
-    println!("================================================");
-
     let pcs_query = pcs_query(expression, num_instance_poly);
     let point_offset = point_offset(&pcs_query);
 
@@ -453,7 +449,6 @@ pub(crate) fn prove_sum_check_with_shift<F: PrimeField>(
     // 由于底层sumcheck要用到，所以transcript中的东西不能改，最终读出来的eval他的值，但是bound的方式改一下
 
     let pcs_query = pcs_query(expression, num_instance_poly);
-    println!("pcs_query.len: {:?}", pcs_query.len());
 
     let timer = start_timer(|| format!("evals-{}", pcs_query.len()));
 
